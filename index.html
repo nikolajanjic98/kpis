@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOC Daily KPI Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --blue-50:#E6F1FB;--blue-100:#B5D4F4;--blue-600:#185FA5;--blue-800:#0C447C;
+    --amber-50:#FAEEDA;--amber-100:#FAC775;--amber-600:#854F0B;--amber-800:#633806;
+    --green-50:#EAF3DE;--green-100:#C0DD97;--green-600:#3B6D11;--green-800:#27500A;
+    --purple-50:#EEEDFE;--purple-100:#CECBF6;--purple-600:#534AB7;--purple-800:#3C3489;
+    --coral-50:#FAECE7;--coral-600:#993C1D;
+    --gray-50:#F4F4F2;--gray-100:#E0DFD8;--gray-200:#B4B2A9;--gray-600:#5F5E5A;--gray-800:#444441;--gray-900:#2C2C2A;
+    --red-50:#FCEBEB;--red-800:#791F1F;
+    --bg:#F7F6F2;--surface:#FFFFFF;--border:rgba(0,0,0,0.1);--border-strong:rgba(0,0,0,0.2);
+    --text-primary:#1A1A18;--text-secondary:#5F5E5A;--text-muted:#888780;
+    --radius:10px;--radius-sm:6px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh;font-size:14px;line-height:1.5;}
+
+  .topbar{background:var(--blue-800);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100;box-shadow:0 1px 0 rgba(0,0,0,0.2);}
+  .topbar-left{display:flex;align-items:center;gap:12px;}
+  .topbar-logo{background:var(--blue-600);border:1px solid var(--blue-100);color:var(--blue-50);font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:1px;}
+  .topbar-title{color:#fff;font-size:15px;font-weight:600;}
+  .topbar-actions{display:flex;gap:8px;}
+
+  .layout{display:flex;min-height:calc(100vh - 54px);}
+
+  .sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:54px;height:calc(100vh - 54px);overflow-y:auto;}
+  .sidebar-section{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;padding:10px 8px 6px;margin-top:6px;}
+  .sidebar-section:first-child{margin-top:0;}
+  .sidebar-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;color:var(--text-secondary);transition:all 0.12s;border:1px solid transparent;user-select:none;}
+  .sidebar-item:hover{background:var(--gray-50);color:var(--text-primary);}
+  .sidebar-item .dot{width:8px;height:8px;border-radius:50%;background:var(--gray-200);flex-shrink:0;}
+  .sidebar-item.role-active .dot{background:var(--green-600);}
+  .sidebar-item.role-active{color:var(--text-primary);}
+  .sidebar-divider{height:1px;background:var(--border);margin:8px 0;}
+
+  .main{flex:1;padding:28px 32px;max-width:880px;}
+
+  .header-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+  .header-card-top{background:linear-gradient(135deg,var(--blue-800) 0%,var(--blue-600) 100%);padding:18px 20px 14px;}
+  .header-card-top h2{color:#fff;font-size:16px;font-weight:600;margin-bottom:3px;}
+  .header-card-top p{color:var(--blue-100);font-size:12px;}
+  .header-fields{padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+  .role-section{margin-bottom:20px;}
+  .section-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;}
+  .role-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .role-card{border:1.5px solid var(--border);border-radius:var(--radius);padding:12px 10px;cursor:pointer;transition:all 0.14s;background:var(--surface);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;}
+  .role-card:hover{border-color:var(--border-strong);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,0.07);}
+  .role-card.active{transform:translateY(-1px);box-shadow:0 2px 12px rgba(0,0,0,0.1);}
+  .role-card.active.r-appsec{border-color:var(--blue-600);background:var(--blue-50);}
+  .role-card.active.r-vuln{border-color:var(--amber-600);background:var(--amber-50);}
+  .role-card.active.r-analyst{border-color:var(--green-600);background:var(--green-50);}
+  .role-card.active.r-eng{border-color:var(--purple-600);background:var(--purple-50);}
+  .role-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .ri-appsec{background:var(--blue-50);}
+  .ri-vuln{background:var(--amber-50);}
+  .ri-analyst{background:var(--green-50);}
+  .ri-eng{background:var(--purple-50);}
+  .role-card.active.r-appsec .ri-appsec{background:var(--blue-100);}
+  .role-card.active.r-vuln .ri-vuln{background:var(--amber-100);}
+  .role-card.active.r-analyst .ri-analyst{background:var(--green-100);}
+  .role-card.active.r-eng .ri-eng{background:var(--purple-100);}
+  .role-name{font-size:12px;font-weight:600;color:var(--text-primary);}
+  .role-sub{font-size:10px;color:var(--text-muted);line-height:1.3;}
+  .role-check{font-size:14px;opacity:0;transition:opacity 0.12s;}
+  .role-card.active .role-check{opacity:1;}
+  .r-appsec.active .role-check{color:var(--blue-600);}
+  .r-vuln.active .role-check{color:var(--amber-600);}
+  .r-analyst.active .role-check{color:var(--green-600);}
+  .r-eng.active .role-check{color:var(--purple-600);}
+
+  .content-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;}
+  .content-section.hidden{display:none;}
+  .sec-header{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);}
+  .sec-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+  .si-appsec{background:var(--blue-50);}
+  .si-vuln{background:var(--amber-50);}
+  .si-analyst{background:var(--green-50);}
+  .si-eng{background:var(--purple-50);}
+  .si-notes{background:var(--coral-50);}
+  .sec-title{font-size:14px;font-weight:600;color:var(--text-primary);}
+  .sec-desc{font-size:12px;color:var(--text-muted);margin-top:1px;}
+  .sec-body{padding:18px;}
+  .fields-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;align-items:end;}
+  .fields-grid.three{grid-template-columns:repeat(3,1fr);align-items:end;}
+  .fields-grid.four{grid-template-columns:repeat(4,1fr);align-items:end;}
+  .fields-grid.five{grid-template-columns:repeat(5,1fr);align-items:end;}
+  .full{grid-column:1/-1;}
+
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.4px;line-height:1.35;}
+  .field input[type=text],.field input[type=date],.field input[type=number],.field select,.field textarea{width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;color:var(--text-primary);background:var(--surface);transition:border-color 0.12s,box-shadow 0.12s;outline:none;}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue-600);box-shadow:0 0 0 3px rgba(24,95,165,0.12);}
+  .field textarea{min-height:80px;resize:vertical;line-height:1.5;}
+  .field input[type=number]{font-size:15px;font-weight:600;text-align:center;height:38px;padding:0 8px;}
+
+  .notes-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+  .empty-state{text-align:center;padding:36px 20px;color:var(--text-muted);font-size:13px;border:1.5px dashed var(--border-strong);border-radius:var(--radius);margin-bottom:16px;}
+  .empty-state .es-icon{font-size:32px;margin-bottom:8px;}
+  .empty-state strong{display:block;color:var(--text-secondary);margin-bottom:4px;}
+
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all 0.13s;font-family:inherit;}
+  .btn:active{transform:scale(0.98);}
+  .btn-primary{background:var(--blue-600);color:#fff;border-color:var(--blue-800);}
+  .btn-primary:hover{background:var(--blue-800);}
+  .btn-secondary{background:var(--surface);color:var(--text-secondary);border-color:var(--border-strong);}
+  .btn-secondary:hover{background:var(--gray-50);}
+  .btn-danger{background:var(--red-50);color:var(--red-800);border-color:rgba(163,45,45,0.2);}
+  .btn-danger:hover{background:#F7C1C1;}
+  .btn-sm{padding:6px 12px;font-size:12px;}
+
+  .bottom-bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 32px;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:50;}
+  .bottom-bar-left{font-size:12px;color:var(--text-muted);}
+  .bottom-bar-right{display:flex;gap:8px;}
+
+  .toast{position:fixed;bottom:72px;right:24px;padding:11px 16px;border-radius:var(--radius-sm);font-size:13px;display:flex;align-items:center;gap:8px;opacity:0;transform:translateY(6px);transition:all 0.2s;pointer-events:none;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.15);}
+  .toast.show{opacity:1;transform:translateY(0);}
+  .toast-success{background:var(--green-800);color:var(--green-50);}
+  .toast-error{background:var(--red-800);color:var(--red-50);}
+
+  .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;}
+  .tag-blue{background:var(--blue-50);color:var(--blue-800);}
+  .tag-amber{background:var(--amber-50);color:var(--amber-800);}
+  .tag-green{background:var(--green-50);color:var(--green-800);}
+  .tag-purple{background:var(--purple-50);color:var(--purple-800);}
+
+  @media(max-width:900px){
+    .sidebar{display:none;}
+    .main{padding:20px 16px;}
+    .role-grid{grid-template-columns:repeat(2,1fr);}
+    .header-fields{grid-template-columns:1fr;}
+    .fields-grid.four,.fields-grid.five{grid-template-columns:1fr 1fr;}
+  }
+  @media(max-width:600px){
+    .fields-grid,.fields-grid.three,.fields-grid.four,.fields-grid.five{grid-template-columns:1fr;}
+    .notes-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-logo">SOC</span>
+    <div class="topbar-title">Daily KPI Report</div>
+  </div>
+  <div class="topbar-actions">
+    <button class="btn btn-secondary btn-sm" onclick="resetForm()">↺ Resetuj</button>
+    <button class="btn btn-primary btn-sm" onclick="generatePDF()">⬇ Generiši PDF</button>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-section">Navigacija</div>
+    <div class="sidebar-item" onclick="goTo('header-card')"><span class="dot"></span> Analitičar & datum</div>
+    <div class="sidebar-item" onclick="goTo('role-section')"><span class="dot"></span> Izbor uloge</div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Sekcije</div>
+    <div class="sidebar-item" id="nav-appsec" onclick="goTo('sec-appsec')"><span class="dot"></span> Application Security</div>
+    <div class="sidebar-item" id="nav-vuln" onclick="goTo('sec-vuln')"><span class="dot"></span> Vuln. Management</div>
+    <div class="sidebar-item" id="nav-analyst" onclick="goTo('sec-analyst')"><span class="dot"></span> Analyst Activities</div>
+    <div class="sidebar-item" id="nav-eng" onclick="goTo('sec-eng')"><span class="dot"></span> Engineering</div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-item" onclick="goTo('sec-notes')"><span class="dot"></span> Napomene</div>
+  </nav>
+
+  <main class="main">
+
+    <!-- HEADER -->
+    <div class="header-card" id="header-card">
+      <div class="header-card-top">
+        <h2>Security Operations Center</h2>
+        <p>Popunite dnevni izveštaj aktivnosti</p>
+      </div>
+      <div class="header-fields">
+        <div class="field">
+          <label>Analitičar</label>
+          <select id="analyst-name">
+            <option value="">— Izaberi ime —</option>
+            <option>Aleksa Atanasković</option>
+            <option>Danijela Topalović</option>
+            <option>Lazar Marković</option>
+            <option>Vanja Gvozdenović</option>
+            <option>Jovana Tomašević</option>
+            <option>Veljko Vesić</option>
+            <option>Aleksandar Đalović</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Datum</label>
+          <input type="date" id="report-date" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ROLE PICKER -->
+    <div class="role-section" id="role-section">
+      <div class="section-label">Izaberi svoju ulogu (možeš izabrati više)</div>
+      <div class="role-grid">
+        <div class="role-card r-appsec" onclick="toggleRole('appsec',this)">
+          <div class="role-icon ri-appsec">🛡️</div>
+          <div class="role-name">AppSec</div>
+          <div class="role-sub">Application Security</div>
+          <div class="role-check">✓</div>
+        </div>
+        <div class="role-card r-vuln" onclick="toggleRole('vuln',this)">
+          <div class="role-icon ri-vuln">🔍</div>
+          <div class="role-name">Vuln. Management</div>
+          <div class="role-sub">VM & WAS skenovi</div>
+          <div class="role-check">✓</div>
+        </div>
+        <div class="role-card r-analyst" onclick="toggleRole('analyst',this)">
+          <div class="role-icon ri-analyst">📡</div>
+          <div class="role-name">Analyst</div>
+          <div class="role-sub">SOC L1 / L2</div>
+          <div class="role-check">✓</div>
+        </div>
+        <div class="role-card r-eng" onclick="toggleRole('eng',this)">
+          <div class="role-icon ri-eng">⚙️</div>
+          <div class="role-name">Engineer</div>
+          <div class="role-sub">Inženjerske aktivnosti</div>
+          <div class="role-check">✓</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="empty-state" id="empty-state">
+      <div class="es-icon">👆</div>
+      <strong>Izaberi ulogu da bi se prikazale sekcije</strong>
+      Klikni na jednu ili više uloga iznad
+    </div>
+
+    <!-- APP SEC -->
+    <div class="content-section hidden" id="sec-appsec">
+      <div class="sec-header">
+        <div class="sec-icon si-appsec">🛡️</div>
+        <div>
+          <div class="sec-title">Application Security</div>
+          <div class="sec-desc">WAF tiketi, polise, migracija F5</div>
+        </div>
+        <span class="tag tag-blue" style="margin-left:auto">AppSec</span>
+      </div>
+      <div class="sec-body">
+        <div class="fields-grid five">
+          <div class="field">
+            <label>Završeni tiketi</label>
+            <input type="number" min="0" id="as-zavrseni" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Kreirane security polise</label>
+            <input type="number" min="0" id="as-polise" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Troubleshooting tiketi</label>
+            <input type="number" min="0" id="as-troubleshooting" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Preuzeti — kreiranje servisa</label>
+            <input type="number" min="0" id="as-kreiranje" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Migracija na F5 (br. servisa)</label>
+            <input type="number" min="0" id="as-f5" placeholder="0" />
+          </div>
+          <div class="field full">
+            <label>Ostalo — napomene, nezavršeni tiketi, blokeri...</label>
+            <textarea id="as-ostalo" placeholder="Npr. tiket #123 nije završen jer čekamo odobrenje. Napomene vezane za tekuće zadatke..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VULN MGMT -->
+    <div class="content-section hidden" id="sec-vuln">
+      <div class="sec-header">
+        <div class="sec-icon si-vuln">🔍</div>
+        <div>
+          <div class="sec-title">Vulnerability Management</div>
+          <div class="sec-desc">Skenovi, ranjivosti, eskalacije, threat intel</div>
+        </div>
+        <span class="tag tag-amber" style="margin-left:auto">VM</span>
+      </div>
+      <div class="sec-body">
+        <div class="fields-grid four">
+          <div class="field">
+            <label>Broj VM skenova</label>
+            <input type="number" min="0" id="vm-skenovi" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Broj WAS skenova</label>
+            <input type="number" min="0" id="vm-was" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Ispravljene ranjivosti</label>
+            <input type="number" min="0" id="vm-ranjivosti" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Broj eskalacija</label>
+            <input type="number" min="0" id="vm-eskalacije" placeholder="0" />
+          </div>
+          <div class="field full">
+            <label>Ostale VM aktivnosti — GroupIB, Shodan, threat intel, OSINT...</label>
+            <textarea id="vm-ostalo" placeholder="External exposure analiza, dark web monitoring, feed integracije, izveštaji..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALYST -->
+    <div class="content-section hidden" id="sec-analyst">
+      <div class="sec-header">
+        <div class="sec-icon si-analyst">📡</div>
+        <div>
+          <div class="sec-title">Analyst Activities</div>
+          <div class="sec-desc">Tiketi, incidenti, IOC, eskalacije</div>
+        </div>
+        <span class="tag tag-green" style="margin-left:auto">Analyst</span>
+      </div>
+      <div class="sec-body">
+        <div class="fields-grid four">
+          <div class="field">
+            <label>Ukupan broj tiketa</label>
+            <input type="number" min="0" id="an-tiketi" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Rešeni incidenti</label>
+            <input type="number" min="0" id="an-incidenti" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Broj eskalacija</label>
+            <input type="number" min="0" id="an-eskalacije" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Broj blokiranih IOC</label>
+            <input type="number" min="0" id="an-ioc" placeholder="0" />
+          </div>
+          <div class="field full">
+            <label>Ostalo — SIEM, pravila, dokumentacija, threat hunting...</label>
+            <textarea id="an-ostalo" placeholder="SIEM tuning, pravila korelacije, playbook ažuriranje, threat hunting, dokumentacija..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ENGINEER -->
+    <div class="content-section hidden" id="sec-eng">
+      <div class="sec-header">
+        <div class="sec-icon si-eng">⚙️</div>
+        <div>
+          <div class="sec-title">Engineering & Infrastructure</div>
+          <div class="sec-desc">Integracije, automatizacija, hardening</div>
+        </div>
+        <span class="tag tag-purple" style="margin-left:auto">Eng</span>
+      </div>
+      <div class="sec-body">
+        <div class="field">
+          <label>Realizovane aktivnosti</label>
+          <textarea id="eng-aktivnosti" style="min-height:110px" placeholder="Integracije novih izvora logova, deployment security alata, konfiguracija SIEM pravila, automatizacija playbooka, hardening sistema, sertifikati, patch management, skripte..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="content-section hidden" id="sec-notes">
+      <div class="sec-header">
+        <div class="sec-icon si-notes">📝</div>
+        <div>
+          <div class="sec-title">Napomene, Preporuke & Zaključak</div>
+          <div class="sec-desc">Uvek se uključuje u izveštaj</div>
+        </div>
+      </div>
+      <div class="sec-body">
+        <div class="notes-grid">
+          <div class="field">
+            <label>Napomene i zapažanja</label>
+            <textarea id="fin-napomene" placeholder="Posebni događaji, problemi tokom dana, bitni kontekst..."></textarea>
+          </div>
+          <div class="field">
+            <label>Preporuke za unapređenje</label>
+            <textarea id="fin-preporuke" placeholder="Predlozi za procese, alate, procedure, automatizaciju..."></textarea>
+          </div>
+          <div class="field full">
+            <label>Zaključak dana — summary</label>
+            <textarea id="fin-zakljucak" placeholder="Opšti osvrt na dan, ključni takeaways, follow-up akcije za naredni dan..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:80px;"></div>
+  </main>
+</div>
+
+<div class="bottom-bar">
+  <div class="bottom-bar-left" id="bottom-roles">Nijedna uloga nije izabrana</div>
+  <div class="bottom-bar-right">
+    <button class="btn btn-danger btn-sm" onclick="resetForm()">↺ Resetuj</button>
+    <button class="btn btn-primary" onclick="generatePDF()">⬇ Generiši PDF izveštaj</button>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <span id="toast-icon">✓</span> <span id="toast-msg"></span>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  STATE & INIT
+// ─────────────────────────────────────────────────────────────
+const activeRoles = new Set();
+document.getElementById('report-date').valueAsDate = new Date();
+
+// ─────────────────────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────────────────────
+function goTo(id){ const e=document.getElementById(id); if(e) e.scrollIntoView({behavior:'smooth',block:'start'}); }
+function val(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function num(id){ const v=parseInt(val(id)); return isNaN(v)||v<0?0:v; }
+function clamp(v,lo,hi){ return Math.min(hi,Math.max(lo,v)); }
+function formatDate(s){
+  if(!s) return '';
+  return new Date(s+'T00:00:00').toLocaleDateString('sr-Latn-RS',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function toast(msg,isErr){
+  const t=document.getElementById('toast');
+  document.getElementById('toast-msg').textContent=msg;
+  document.getElementById('toast-icon').textContent=isErr?'✕':'✓';
+  t.className='toast show '+(isErr?'toast-error':'toast-success');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  ROLES
+// ─────────────────────────────────────────────────────────────
+function toggleRole(role,el){
+  activeRoles.has(role)?activeRoles.delete(role):activeRoles.add(role);
+  el.classList.toggle('active');
+  updateSections();
+}
+function updateSections(){
+  const has=activeRoles.size>0;
+  document.getElementById('empty-state').style.display=has?'none':'block';
+  ['appsec','vuln','analyst','eng'].forEach(r=>{
+    document.getElementById('sec-'+r).classList.toggle('hidden',!activeRoles.has(r));
+    const n=document.getElementById('nav-'+r);
+    if(n) n.classList.toggle('role-active',activeRoles.has(r));
+  });
+  document.getElementById('sec-notes').classList.toggle('hidden',!has);
+  const nm={appsec:'AppSec',vuln:'VM',analyst:'Analyst',eng:'Engineer'};
+  document.getElementById('bottom-roles').textContent=has
+    ?'Aktivne uloge: '+[...activeRoles].map(r=>nm[r]).join(', ')
+    :'Nijedna uloga nije izabrana';
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RESET
+// ─────────────────────────────────────────────────────────────
+function resetForm(){
+  if(!confirm('Resetovati ceo obrazac?')) return;
+  ['analyst-name','as-zavrseni','as-polise','as-troubleshooting','as-kreiranje','as-f5','as-ostalo',
+   'vm-skenovi','vm-was','vm-ranjivosti','vm-eskalacije','vm-ostalo',
+   'an-tiketi','an-incidenti','an-eskalacije','an-ioc','an-ostalo',
+   'eng-aktivnosti','fin-napomene','fin-preporuke','fin-zakljucak']
+  .forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  document.getElementById('report-date').valueAsDate=new Date();
+  activeRoles.clear();
+  document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('active'));
+  updateSections();
+  toast('Obrazac je resetovan.');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  KPI CALCULATION
+//
+//  LOGIKA:
+//  Primarna uloga (prva izabrana ili najviši score) = 0–100 pts.
+//  Svaka dodatna uloga donosi max +10 pts bonus (proporcionalno
+//  njenom score-u: bonus = clamp(roleScore / 100 * 10, 0, 10)).
+//  Napomene/Preporuke/Zaključak su globalni bonus (+10 max).
+//  Finalni max: 100 + (N-1)×10 + 10 notes
+//  Primjer: 1 uloga = max 110, 2 uloge = max 120, 4 uloge = max 130.
+//
+//  ── APP SEC (raw max ~100) ───────────────────────────────
+//    Završeni tiketi          × 5
+//    Kreirane security polise × 5
+//    Troubleshooting tiketi   × 5
+//    Preuzeti — kreiranje     × 2
+//    Migracija F5 (servisi)   × 1
+//
+//  ── VULN MGMT (raw max ~100) ─────────────────────────────
+//    Ispravljene ranjivosti   × 4
+//    Eskalacije               × 3
+//    Ostale VM aktivnosti     flat +5 ako popunjeno
+//    VM skenovi               × 1
+//    WAS skenovi              × 1
+//
+//  ── ANALYST (raw max ~100) ───────────────────────────────
+//    Blokirani IOC            × 5
+//    Rešeni incidenti         × 4
+//    Ostalo (tekst)           flat +4 ako popunjeno
+//    Eskalacije               × −1
+//
+//  ── ENGINEER (raw max 100) ───────────────────────────────
+//    Flat skor po dužini opisa: 10→20, 30→40, 80→70, 150→100
+//
+//  ── NAPOMENE BONUS ───────────────────────────────────────
+//    Napomene +4, Preporuke +3, Zaključak +3 → max +10
+// ─────────────────────────────────────────────────────────────
+function calcKPI(){
+  const scores={};
+  const breakdown={};
+
+  // ── APP SEC ──
+  if(activeRoles.has('appsec')){
+    const zavrseni  = num('as-zavrseni')        * 5;
+    const polise    = num('as-polise')          * 5;
+    const trouble   = num('as-troubleshooting') * 5;
+    const kreiranje = num('as-kreiranje')       * 2;
+    const f5        = num('as-f5')              * 1;
+    const raw = zavrseni + polise + trouble + kreiranje + f5;
+    scores['appsec'] = clamp(raw, 0, 100);
+    breakdown['AppSec'] = { score: scores['appsec'], lines:[
+      {label:'Završeni tiketi',   val:num('as-zavrseni'),        pts:zavrseni,  mult:'×5'},
+      {label:'Security polise',   val:num('as-polise'),          pts:polise,    mult:'×5'},
+      {label:'Troubleshooting',   val:num('as-troubleshooting'), pts:trouble,   mult:'×5'},
+      {label:'Kreiranje servisa', val:num('as-kreiranje'),       pts:kreiranje, mult:'×2'},
+      {label:'Migracija F5',      val:num('as-f5'),              pts:f5,        mult:'×1'},
+    ]};
+  }
+
+  // ── VULN MGMT ──
+  if(activeRoles.has('vuln')){
+    const fix  = num('vm-ranjivosti') * 4;
+    const esc  = num('vm-eskalacije') * 3;
+    const vm   = num('vm-skenovi')    * 1;
+    const was  = num('vm-was')        * 1;
+    const ostT = val('vm-ostalo');
+    const ost  = ostT.length >= 10 ? 5 : 0;
+    const raw  = fix + esc + vm + was + ost;
+    scores['vuln'] = clamp(raw, 0, 100);
+    breakdown['VM'] = { score: scores['vuln'], lines:[
+      {label:'Ispravljene ranjivosti', val:num('vm-ranjivosti'),   pts:fix, mult:'×4'},
+      {label:'Eskalacije',             val:num('vm-eskalacije'),   pts:esc, mult:'×3'},
+      {label:'Ostale VM aktivnosti',   val:ostT.length>=10?1:0,   pts:ost, mult:'flat +5'},
+      {label:'VM skenovi',             val:num('vm-skenovi'),      pts:vm,  mult:'×1'},
+      {label:'WAS skenovi',            val:num('vm-was'),          pts:was, mult:'×1'},
+    ]};
+  }
+
+  // ── ANALYST ──
+  if(activeRoles.has('analyst')){
+    const ioc  = num('an-ioc')        * 5;
+    const inc  = num('an-incidenti')  * 4;
+    const esc  = num('an-eskalacije') * -1;
+    const ostT = val('an-ostalo');
+    const ost  = ostT.length >= 10 ? 4 : 0;
+    const raw  = ioc + inc + esc + ost;
+    scores['analyst'] = clamp(raw, 0, 100);
+    breakdown['Analyst'] = { score: scores['analyst'], lines:[
+      {label:'Blokirani IOC',    val:num('an-ioc'),       pts:ioc, mult:'×5'},
+      {label:'Rešeni incidenti', val:num('an-incidenti'), pts:inc, mult:'×4'},
+      {label:'Ostalo (tekst)',   val:ostT.length>=10?1:0, pts:ost, mult:'flat +4'},
+      {label:'Eskalacije',       val:num('an-eskalacije'),pts:esc, mult:'×−1'},
+    ]};
+  }
+
+  // ── ENGINEER ──
+  if(activeRoles.has('eng')){
+    const txt = val('eng-aktivnosti');
+    const s   = txt.length>=150 ? 100 : txt.length>=80 ? 70 : txt.length>=30 ? 40 : txt.length>=10 ? 20 : 0;
+    scores['eng'] = s;
+    breakdown['Engineer'] = { score: s, lines:[
+      {label:'Opis aktivnosti', val:txt.length+' znakova', pts:s, mult:'po sadržaju'},
+    ]};
+  }
+
+  // ── PRIMARNA vs DODATNE ULOGE ──
+  // Sortiraj uloge po score-u opadajuće.
+  // Primarna = najviši score → ide u base (0–100).
+  // Svaka dodatna → bonus = clamp(njenScore / 100 * 10, 0, 10).
+  const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  let base = 0;
+  let extraBonus = 0;
+  let primaryRole = null;
+  sorted.forEach(([role, s], i) => {
+    if(i === 0){ base = s; primaryRole = role; }
+    else { extraBonus += clamp(Math.round(s / 100 * 10), 0, 10); }
+  });
+
+  // ── NAPOMENE BONUS (max +10) ──
+  let notesBonus = 0;
+  if(val('fin-napomene').length  >= 10) notesBonus += 4;
+  if(val('fin-preporuke').length >= 10) notesBonus += 3;
+  if(val('fin-zakljucak').length >= 10) notesBonus += 3;
+  if(notesBonus > 0){
+    breakdown['Napomene & Zaključak'] = { score: notesBonus, lines:[
+      {label:'Bonus za napomene/preporuke/zaključak', val:'—', pts:notesBonus, mult:'flat'}
+    ]};
+  }
+
+  const total = clamp(base + extraBonus + notesBonus, 0, 999);
+
+  return { total, base, extraBonus, notesBonus, scores, breakdown, primaryRole };
+}
+
+function getGrade(total){
+  // Grade se uvek meri prema 100 (primarna uloga).
+  // Bonus poeni su nagrada za širi scope, ne menjaju granicu.
+  if(total >= 86) return {label:'Exceptional!', cls:'exceptional', desc:'Izvanredan dan - daleko iznad ocekivanja!'};
+  if(total >= 66) return {label:'Iznad ocekivanja', cls:'above',      desc:'Solidan dan, iznad proseka.'};
+  if(total >= 41) return {label:'U skladu s ocekivanjima', cls:'on',  desc:'Standardan radni dan.'};
+  return              {label:'Ispod ocekivanja',   cls:'below',       desc:'Dopuni aktivnosti ili provjeri unos.'};
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PDF GENERATION
+// ─────────────────────────────────────────────────────────────
+function generatePDF(){
+  const name = val('analyst-name');
+  const date = val('report-date');
+  if(!name){ toast('Izaberite analiticara.',true); return; }
+  if(!date){ toast('Unesite datum.',true); return; }
+  if(activeRoles.size===0){ toast('Izaberite ulogu.',true); return; }
+
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const W=210, ML=16, MR=16, CW=W-ML-MR;
+  let y=0;
+
+  // Strip Serbian diacritics — MUST be defined first, used everywhere in PDF
+  function pd(s){
+    if(!s) return '';
+    return s.replace(/[čć]/g,'c').replace(/[ČĆ]/g,'C')
+            .replace(/š/g,'s').replace(/Š/g,'S')
+            .replace(/ž/g,'z').replace(/Ž/g,'Z')
+            .replace(/đ/g,'dj').replace(/Đ/g,'Dj')
+            .replace(/[—–]/g,'-').replace(/[·•]/g,'-');
+  }
+
+  // Safe name — diacritics stripped for PDF rendering
+  const pdfName = pd(name);
+
+  const C={
+    hdr:[12,68,124], hdrLight:[181,212,244],
+    appsec:[24,95,165], vuln:[133,79,11], analyst:[59,109,17], eng:[83,74,183],
+    notes:[153,60,29], kpi:[44,44,41],
+    bg:[248,248,246], border:[220,220,215], txt:[30,30,28], muted:[100,100,96], white:[255,255,255],
+  };
+  const metBg ={appsec:[240,245,252], vuln:[250,238,218], analyst:[234,243,222], eng:[238,237,254]};
+  const metTxt={appsec:[24,95,165],   vuln:[133,79,11],   analyst:[59,109,17],  eng:[83,74,183]};
+
+  function checkY(n){ if(y+n>276){ doc.addPage(); y=16; } }
+
+  function secHdr(title, color){
+    checkY(12);
+    doc.setFillColor(...color);
+    doc.roundedRect(ML,y,CW,9,2,2,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(255,255,255);
+    doc.text(title, ML+5, y+6);
+    y+=13;
+  }
+
+  function metricRow(fields, role){
+    const gap=2, tileH=20;
+    const tileW=(CW-(fields.length-1)*gap)/fields.length;
+    checkY(tileH+4);
+    fields.forEach((f,i)=>{
+      const tx=ML+i*(tileW+gap);
+      doc.setFillColor(...metBg[role]);
+      doc.roundedRect(tx,y,tileW,tileH,1.5,1.5,'F');
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(...C.muted);
+      const lbl=doc.splitTextToSize(f.label, tileW-5);
+      doc.text(lbl[0]||'', tx+3, y+5);
+      if(lbl[1]) doc.text(lbl[1], tx+3, y+8.5);
+      doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(...metTxt[role]);
+      doc.text(String(f.value), tx+3, y+17.5);
+    });
+    y+=tileH+5;
+  }
+
+  function txtBlock(label, text, color){
+    if(!text?.trim()) return;
+    const safeText = pd(text.trim());
+    const lines=doc.splitTextToSize(safeText, CW-10);
+    const h=6+lines.length*5+5;
+    checkY(h+3);
+    doc.setFillColor(...C.bg);
+    doc.roundedRect(ML,y,CW,h,1.5,1.5,'F');
+    doc.setDrawColor(...C.border); doc.setLineWidth(0.2);
+    doc.roundedRect(ML,y,CW,h,1.5,1.5,'D');
+    doc.setFillColor(...color);
+    doc.roundedRect(ML,y+2,3,h-4,1,1,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(...color);
+    doc.text(label, ML+6, y+5.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...C.txt);
+    doc.text(lines, ML+6, y+11);
+    y+=h+4;
+  }
+
+  // ── PAGE HEADER ──
+  doc.setFillColor(...C.hdr);
+  doc.rect(0,0,W,40,'F');
+  doc.setFillColor(8,48,90);
+  doc.rect(0,37,W,3,'F');
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(21); doc.setTextColor(255,255,255);
+  doc.text('SOC Daily KPI Report', ML, 17);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(...C.hdrLight);
+  doc.text('Security Operations Center - Dnevni izvestaj aktivnosti', ML, 25);
+
+  // Pills — all using pdfName (stripped)
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+  const pillH=7, pillY=30, pillPad=5;
+
+  const nameW = doc.getTextWidth(pdfName) + pillPad*2;
+  doc.setFillColor(255,255,255);
+  doc.roundedRect(ML, pillY, nameW, pillH, 1.5,1.5,'F');
+  doc.setTextColor(...C.hdr);
+  doc.text(pdfName, ML+pillPad, pillY+4.9);
+
+  const dateStr=formatDate(date);
+  const dateW=doc.getTextWidth(dateStr)+pillPad*2;
+  doc.setFillColor(...C.hdrLight);
+  doc.roundedRect(ML+nameW+3, pillY, dateW, pillH, 1.5,1.5,'F');
+  doc.setTextColor(...C.hdr);
+  doc.text(dateStr, ML+nameW+3+pillPad, pillY+4.9);
+
+  const rNm={appsec:'AppSec', vuln:'VM', analyst:'Analyst', eng:'Engineer'};
+  const roleStr=[...activeRoles].map(r=>rNm[r]).join(' / ');
+  doc.setFontSize(7.5);
+  const roleW=doc.getTextWidth(roleStr)+pillPad*2;
+  doc.setFillColor(8,48,90);
+  doc.roundedRect(W-MR-roleW, pillY, roleW, pillH, 1.5,1.5,'F');
+  doc.setTextColor(...C.hdrLight);
+  doc.text(roleStr, W-MR-roleW+pillPad, pillY+4.9);
+
+  y=48;
+
+  // ── APP SEC ──
+  if(activeRoles.has('appsec')){
+    secHdr('APPLICATION SECURITY', C.appsec);
+    metricRow([
+      {label:'Zavrseni tiketi',        value:num('as-zavrseni')},
+      {label:'Security polise',        value:num('as-polise')},
+      {label:'Troubleshooting',        value:num('as-troubleshooting')},
+      {label:'Kreiranje servisa',      value:num('as-kreiranje')},
+      {label:'Migracija F5 (servisi)', value:num('as-f5')},
+    ],'appsec');
+    txtBlock('Ostalo / Napomene / Nezavrseni tiketi', val('as-ostalo'), C.appsec);
+  }
+
+  // ── VULN ──
+  if(activeRoles.has('vuln')){
+    secHdr('VULNERABILITY MANAGEMENT', C.vuln);
+    metricRow([
+      {label:'VM skenovi',             value:num('vm-skenovi')},
+      {label:'WAS skenovi',            value:num('vm-was')},
+      {label:'Ispravljene ranjivosti', value:num('vm-ranjivosti')},
+      {label:'Eskalacije',             value:num('vm-eskalacije')},
+    ],'vuln');
+    txtBlock('Ostale VM aktivnosti (GroupIB, Shodan...)', val('vm-ostalo'), C.vuln);
+  }
+
+  // ── ANALYST ──
+  if(activeRoles.has('analyst')){
+    secHdr('ANALYST ACTIVITIES', C.analyst);
+    metricRow([
+      {label:'Ukupno tiketa',    value:num('an-tiketi')},
+      {label:'Reseni incidenti', value:num('an-incidenti')},
+      {label:'Eskalacije',       value:num('an-eskalacije')},
+      {label:'Blokirani IOC',    value:num('an-ioc')},
+    ],'analyst');
+    txtBlock('Ostale Analyst aktivnosti', val('an-ostalo'), C.analyst);
+  }
+
+  // ── ENGINEER ──
+  if(activeRoles.has('eng')){
+    secHdr('ENGINEERING & INFRASTRUCTURE', C.eng);
+    txtBlock('Realizovane aktivnosti', val('eng-aktivnosti'), C.eng);
+  }
+
+  // ── NOTES ──
+  secHdr('NAPOMENE, PREPORUKE & ZAKLJUCAK', C.notes);
+  txtBlock('Napomene i zapazanja',     val('fin-napomene'),  C.notes);
+  txtBlock('Preporuke za unapredjenje',val('fin-preporuke'), C.notes);
+  txtBlock('Zakljucak dana',           val('fin-zakljucak'), C.notes);
+
+  // ── KPI SCORE ──
+  const {total, base, extraBonus, notesBonus, scores, breakdown, primaryRole} = calcKPI();
+  const grade = getGrade(base);
+
+  checkY(80);
+  secHdr('KPI SCORE - DNEVNA OCENA PERFORMANSI', C.kpi);
+
+  // ── Main score panel ──
+  const panelH = 38;
+  doc.setFillColor(36,36,34);
+  doc.roundedRect(ML,y,CW,panelH,2,2,'F');
+
+  // Left side: big number
+  doc.setFont('helvetica','bold'); doc.setFontSize(36); doc.setTextColor(255,255,255);
+  doc.text(String(total), ML+8, y+26);
+  const numW = doc.getTextWidth(String(total));
+
+  // "/100" or breakdown
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(...C.hdrLight);
+  if(activeRoles.size===1){
+    doc.text('/ 100', ML+8+numW+2, y+26);
+  } else {
+    const parts=[];
+    if(base>0) parts.push(base+' primarna');
+    if(extraBonus>0) parts.push('+'+extraBonus+' uloge');
+    if(notesBonus>0) parts.push('+'+notesBonus+' napomene');
+    doc.text(parts.join('  '), ML+8+numW+3, y+26);
+  }
+
+  // Right side: grade badge — RIGHT-ALIGNED inside panel, stays within CW
+  const gcMap={exceptional:[[234,243,222],[39,80,10]],above:[[240,245,252],[12,68,124]],on:[[250,238,218],[99,56,6]],below:[[252,235,235],[121,31,31]]};
+  const gc=gcMap[grade.cls]||[[240,240,240],[50,50,50]];
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  const gLabelW=doc.getTextWidth(grade.label);
+  const gPad=5, gH=8, gW=gLabelW+gPad*2;
+  const gX=ML+CW-gW-4;  // 4mm from right edge of panel
+  doc.setFillColor(...gc[0]);
+  doc.roundedRect(gX, y+7, gW, gH, 2,2,'F');
+  doc.setTextColor(...gc[1]);
+  doc.text(grade.label, gX+gPad, y+13);
+
+  // Grade desc below badge
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...C.hdrLight);
+  const descW=doc.getTextWidth(grade.desc);
+  doc.text(grade.desc, ML+CW-descW-4, y+23);
+
+  // Progress bar at bottom of panel
+  const barY=y+panelH-5, barX=ML+8, barW=CW-16;
+  doc.setFillColor(70,70,67);
+  doc.roundedRect(barX,barY,barW,2.5,1,1,'F');
+  if(base>0){
+    doc.setFillColor(24,95,165);
+    doc.roundedRect(barX,barY,barW*base/100,2.5,1,1,'F');
+  }
+  y+=panelH+5;
+
+  // ── Per-role chips ──
+  const roleColors={appsec:C.appsec, vuln:C.vuln, analyst:C.analyst, eng:C.eng};
+  const roleLabels={appsec:'AppSec', vuln:'VM', analyst:'Analyst', eng:'Engineer'};
+  const sortedRoles=Object.entries(scores).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+
+  if(sortedRoles.length>0){
+    const chipH=18, gap=2;
+    const chipW=(CW-(sortedRoles.length-1)*gap)/sortedRoles.length;
+    checkY(chipH+4);
+    sortedRoles.forEach((r,i)=>{
+      const cx=ML+i*(chipW+gap);
+      const cs=scores[r]||0;
+      const isPrimary=(i===0);
+      const bonusPts=isPrimary?null:clamp(Math.round(cs/100*10),0,10);
+
+      doc.setFillColor(isPrimary?50:44, isPrimary?50:44, isPrimary?48:42);
+      doc.roundedRect(cx,y,chipW,chipH,1.5,1.5,'F');
+
+      // Left accent bar for primary
+      if(isPrimary){
+        doc.setFillColor(...roleColors[r]);
+        doc.roundedRect(cx,y,3,chipH,1,1,'F');
+      }
+
+      // Label
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(170,168,162);
+      const chipLabel=roleLabels[r]+(isPrimary?' (primarna)':' +'+bonusPts+'pts bonus');
+      doc.text(chipLabel, cx+5, y+6);
+
+      // Score
+      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
+      doc.text(cs+'/100', cx+5, y+14.5);
+
+      // Mini bar
+      doc.setFillColor(70,70,67);
+      doc.roundedRect(cx+5,y+16,chipW-10,1.5,0.5,0.5,'F');
+      if(cs>0){
+        doc.setFillColor(...roleColors[r]);
+        doc.roundedRect(cx+5,y+16,(chipW-10)*cs/100,1.5,0.5,0.5,'F');
+      }
+    });
+    y+=chipH+5;
+  }
+
+  // ── Bonus & legend row ──
+  if(extraBonus>0||notesBonus>0){
+    checkY(9);
+    doc.setFillColor(50,50,47);
+    doc.roundedRect(ML,y,CW,9,1,1,'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(155,153,148);
+    let bx=ML+5;
+    doc.text('Bonus:', bx, y+6); bx+=doc.getTextWidth('Bonus:  ');
+    if(extraBonus>0){
+      doc.setFont('helvetica','bold'); doc.setTextColor(181,212,244);
+      doc.text('+'+extraBonus+' pts dodatne uloge', bx, y+6);
+      bx+=doc.getTextWidth('+'+extraBonus+' pts dodatne uloge   ');
+    }
+    if(notesBonus>0){
+      doc.setFont('helvetica','bold'); doc.setTextColor(192,221,151);
+      doc.text('+'+notesBonus+' pts napomene', bx, y+6);
+    }
+    y+=13;
+  }
+
+  checkY(8);
+  doc.setFillColor(44,44,42);
+  doc.roundedRect(ML,y,CW,8,1,1,'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(130,128,124);
+  doc.text('Primarna uloga: max 100 pts  |  Svaka dodatna: max +10 pts  |  Napomene: max +10 pts  |  Ocena: 0-40 ispod / 41-65 u skladu / 66-85 iznad / 86+ exceptional', ML+4, y+5.3);
+  y+=12;
+
+  // ── FOOTERS ──
+  const pg=doc.internal.getNumberOfPages();
+  for(let i=1;i<=pg;i++){
+    doc.setPage(i);
+    doc.setFillColor(...C.hdr);
+    doc.rect(0,289,W,8,'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...C.hdrLight);
+    doc.text('SOC Daily KPI | '+pdfName+' | '+formatDate(date)+' | '+roleStr, ML, 294.5);
+    doc.text(i+' / '+pg, W-MR-8, 294.5);
+  }
+
+  const fname='SOC_KPI_'+name.replace(/\s+/g,'_')+'_'+date+'.pdf';
+  doc.save(fname);
+  toast('PDF "'+fname+'" preuzet!');
+}
+</script>
+</body>
+</html>
